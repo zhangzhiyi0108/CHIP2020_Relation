@@ -1,0 +1,83 @@
+# shared for multiple projects in this machine, raw data, read only
+
+home:
+#  dir: 'd:/Python'
+  dir: '/home/zutnlp/zutnlp_student_2017/zhangzhiyi'
+#  dir: '~/liuxiaoming'
+device: ~
+
+data:
+  separator: ' '
+  base_dir: 'd:/Python/datasets/CoNLL-2003'
+  name: 'object'
+  train_path: '{data.base_dir}/{data.name}/train.txt'
+  valid_path: '{data.base_dir}/{data.name}/valid.txt'
+  test_path: '{data.base_dir}/{data.name}/test.txt'
+
+  chip_relation:
+    use_chip_relation: True
+#    base_dir: 'd:/Python/WorkSpace/CHIP2020_RE/CHIP2020_Relation'
+    base_dir: '/home/zutnlp/zutnlp_student_2017/zhangzhiyi/CHIP2020_Relation'
+    name: 'data'
+    train_path: '{data.chip_relation.base_dir}/{data.chip_relation.name}/train_data.json'
+    valid_path: '{data.chip_relation.base_dir}/{data.chip_relation.name}/val_data.json'
+    test_path: '{data.chip_relation.base_dir}/{data.chip_relation.name}/test1.json'
+    shcemas_path: '{data.chip_relation.base_dir}/{data.chip_relation.name}/53_schemas.json'
+    result_path: '{data.chip_relation.base_dir}/{data.chip_relation.name}/object_result.json'
+  num_vocab: 20000
+  num_tag: 100
+  batch_size: 50
+
+  train_batch_size: 50
+  train_shuffle: True
+  train_worker_num: 0
+
+  test_batch_size: 50
+  test_shuffle: False
+  test_worker_num: 0
+
+project:
+  name: 'CHIP2020_RE'
+  dir:
+    work: "{home.dir}/{project.name}"
+#    work: "{home.dir}/WorkSpace/{project.name}"
+
+# specified for specific module
+model:
+  name: 'CHIP2020_Relation'
+  dim_embedding: 300
+  dim_hidden: 300
+  nhead: 2
+  nhid: 200
+  nlayer: 1
+  bidirectional: True
+  batch_first: False
+
+loss:
+  alpha: 1.0
+  beta: 1.0e-3
+  align: 'MSE'
+  reconstruct: 'L2'
+  triplet:
+    margin: 100
+
+evaluation:
+  kind: seq
+  type: micro # macro
+  is_display: True
+
+learn:
+  dropout_rate: 0.1
+  learning_rate: 2.0e-4
+  weight_decay: 1.0e-5
+  batch_display: 50
+  episode: 100
+  dir:
+    work: "{project.dir.work}/{model.name}"
+    log: '{learn.dir.work}/log'
+    data: "{learn.dir.work}/data"
+    saved: '{learn.dir.work}/saved'
+    result: '{learn.dir.work}/result'
+    summary: '{learn.dir.work}/summary'
+
+
