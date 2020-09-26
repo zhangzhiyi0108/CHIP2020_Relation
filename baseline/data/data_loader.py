@@ -63,12 +63,16 @@ def _get_list(jsonstr):
         object_end_poses = [start + len(object) - 1 for start in object_start_poses]
         for j in range(len(object_start_poses)):
             x = object_start_poses[j]
-            if predicate =='手术治疗':
+            if predicate == '手术治疗':
                 tag_list[x] = 'B_' + predicate+'_p'
+            else:
+                tag_list[x] = 'B_' + predicate
             x += 1
             while x <= object_end_poses[j]:
                 if predicate == '手术治疗':
                     tag_list[x] = 'I_' + predicate+'_p'
+                else:
+                    tag_list[x] = 'I_' + predicate
                 x += 1
     text_list = list(text)
     return text_list, tag_list

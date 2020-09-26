@@ -6,6 +6,7 @@
 import json
 import warnings
 
+import numpy
 import numpy as np
 import torch
 import torch.optim as optim
@@ -163,6 +164,9 @@ class CHIP2020_RE():
                           '预后状况': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
                           '预后生存率': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
                           '部位': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
+                          '流行病学': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
+                          '辅助检查': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
+                          '相关（导致)': {'TP': 0, 'S': 0, 'G': 0, 'p': 0, 'r': 0, 'f1': 0},
                           }
         model = self.model
         for index, iter in enumerate(tqdm(self.dev_iter)):
@@ -300,6 +304,9 @@ class CHIP2020_RE():
             '预后生存率': {'TP': 0, 'S': 0, 'G': 0},
             '部位': {'TP': 0, 'S': 0, 'G': 0},
             '检查': {'TP': 0, 'S': 0, 'G': 0},
+            '流行病学': {'TP': 0, 'S': 0, 'G': 0},
+            '辅助检查': {'TP': 0, 'S': 0, 'G': 0},
+            '相关（导致)': {'TP': 0, 'S': 0, 'G': 0},
 
         }
         for true in true_list:
@@ -346,7 +353,7 @@ class CHIP2020_RE():
                     '发病率': '发病率',
                     '发病年龄': '发病年龄',
                     '多发地区': '多发地区',
-                    '发病性别倾向': '发病性别倾',
+                    '发病性别倾向': '发病性别倾向',
                     '死亡率': '死亡率',
                     '多发季节': '多发季节',
                     '传播途径': '传播途径',
@@ -354,14 +361,14 @@ class CHIP2020_RE():
                     '病理分型': '病理分型',
                     '相关（导致）': '相关（导致)',
                     '鉴别诊断': '鉴别诊断',
-                    '相关（转化）': '相关（转化',
-                    '相关（症状）': '相关（症状',
+                    '相关（转化）': '相关（转化）',
+                    '相关（症状）': '相关（症状）',
                     '临床表现': '临床表现',
                     '治疗后症状': '治疗后症状',
-                    '侵及周围组织': '侵及周围组',
+                    '侵及周围组织转移的症状': '侵及周围组织转移的症状',
                     '病因': '病因',
                     '高危因素': '高危因素',
-                    '风险评估因素': '风险评估因',
+                    '风险评估因素': '风险评估因素',
                     '病史': '病史',
                     '遗传因素': '遗传因素',
                     '发病机制': '发病机制',
@@ -372,8 +379,10 @@ class CHIP2020_RE():
                     '外侵部位': '外侵部位',
                     '预后状况': '预后状况',
                     '预后生存率': '预后生存率',
+                    '流行病学': '流行病学',
                     '部位': '部位',
                     '检查': '检查',
+                    '辅助检查': '辅助检查',
                     }
         i = 0
 
@@ -419,109 +428,114 @@ class CHIP2020_RE():
         all_subject_type=[]
         all_predicate = []
         all_shcemas = []
-        with open(self._config.data.chip_relation.result_path, 'w', encoding='utf-8') as fw:
-            with open(self._config.data.chip_relation.shcemas_path, 'r', encoding='utf-8') as f:
-                for jsonstr in f.readlines():
-                    jsonstr = json.loads(jsonstr)
-                    all_shcemas.append(jsonstr)
-                    all_subject_type.append(jsonstr['subject_type'])
-                    all_predicate.append(jsonstr['predicate'])
-                all_predicate = set(all_predicate)
-                for dict_input in tqdm(self._test_dataloader):
-                    dict_output = self._model(dict_input)
-                    results = dict_output['outputs']
-                    sentences = np.asarray(dict_output['input_sequence'].T.cpu())
-                    # batch 句子
-                    batch_sentences = []
-                    for sentence in sentences:
-                        sentence = [self.word_vocab.itos[k] for k in sentence]
-                        while '<pad>' in sentence:
-                            sentence.remove('<pad>')
-                        batch_sentences.append(sentence)
-                    # batch 预测
-                    tag_preds = []
+        with open(self.config.shcemas_path, 'r', encoding='utf-8') as fs:
+            for jsonstr in fs.readlines():
+                jsonstr = json.loads(jsonstr)
+                all_shcemas.append(jsonstr)
+                all_subject_type.append(jsonstr['subject_type'])
+                all_predicate.append(jsonstr['predicate'])
+            fs.close()
+        all_predicate = set(all_predicate)
+        with open(save_path, 'w', encoding='utf-8') as fw:
+            with open(path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                for jsonstr in tqdm(lines):
+                    line = json.loads(jsonstr)
+                    text = torch.tensor(numpy.array([word_vocab.stoi[word] for word in line['text']], dtype='int64')).unsqueeze(1).expand(len(line['text']),self.config.batch_size).to(DEVICE)
+                    text_len = torch.tensor(numpy.array([len(line['text'])], dtype='int64')).expand(self.config.batch_size).to(DEVICE)
+                    results = model(text,text_len)
+                    results_len = []
                     for result in results:
-                        tag_pred = [self.tag_vocab.itos[k] for k in result]
-                        tag_preds.append(tag_pred)
-                    for i, tag_preds_single in enumerate(tag_preds):
-                        sentence = batch_sentences[i]
-                        sentence,dict_list = self._get_single(sentence,tag_preds_single,all_predicate)
-                        new = []
-                        for list in dict_list:
-                            for shcemas in all_shcemas:
-                                if list['subject_type'] == shcemas['subject_type'] and list['predicate'] ==shcemas['predicate']:
-                                    result_dict = {
-                                            'predicate':list['predicate'] ,
-                                            "subject": "".join(sentence[list['subject_type_start']:list['subject_type_end']+1]),
-                                            'subject_type': list['subject_type'],
-                                            "object":{"@value":"".join(sentence[list['object_type_start']:list['object_type_end']+1])},
-                                            'object_type':{"@value":shcemas['object_type']}
-                                        }
-                                    new.append(result_dict)
-                        if sum([item.count('。') for item in sentence]) >= 2:
-                            for item in new:
-                                item['Combined'] = True
-                        else:
-                            for item in new:
-                                item['Combined'] = False
-                        if len(new) == 0:
-                            new =[{
-                                        "Combined": '',
-                                        'predicate': '',
-                                        "subject": '',
-                                        'subject_type': '',
-                                        "object": {"@value":""},
-                                        'object_type': {"@value":""},
-                                    }]
-                            pred_dict = {
-                                "text": ''.join(sentence),
-                                "spo_list": new,
-                            }
-                        else:
+                        n = 0
+                        for i in result:
+                            if i !=1:
+                                n+=1
+                        results_len.append(n)
+                    index = results_len.index(max(results_len))
+                    result = results[index]
+                    tag_pred = [tag_vocab.itos[k] for k in result]
+                    sentence = line['text'].replace('\n', '')
+                    sentencelist = [x for x in sentence]
+                    sentence, dict_list = _get_single(sentence, tag_pred, all_predicate)
+                    new = []
+                    for list in dict_list:
+                        for shcemas in all_shcemas:
+                            if list['subject_type'] == shcemas['subject_type'] and list['predicate'] ==shcemas['predicate']:
+                                result_dict = {
+                                        'predicate':list['predicate'] ,
+                                        "subject": "".join(sentence[list['subject_start']:list['subject_end']+1]),
+                                        'subject_type': list['subject_type'],
+                                        "object":{"@value":"".join(sentence[list['object_start']:list['object_end']+1])},
+                                        'object_type':{"@value":shcemas['object_type']}
+                                    }
+                                new.append(result_dict)
+                    if sum([item.count('。') for item in sentence]) >= 2:
+                        for item in new:
+                            item['Combined'] = True
+                    else:
+                        for item in new:
+                            item['Combined'] = False
+                    if len(new) == 0:
+                        new =[{
+                                    "Combined": '',
+                                    'predicate': '',
+                                    "subject": '',
+                                    'subject_type': '',
+                                    "object": {"@value":""},
+                                    'object_type': {"@value":""},
+                                }]
+                        pred_dict = {
+                            "text": ''.join(sentence),
+                            "spo_list": new,
+                        }
+                    else:
 
-                            pred_dict = {
-                                "text" : ''.join(sentence),
-                                "spo_list" : new,
-                            }
-                        fw.write(json.dumps(pred_dict,ensure_ascii=False) + '\n')
-            f.close()
+                        pred_dict = {
+                            "text" : ''.join(sentence),
+                            "spo_list" : new,
+                        }
+                    fw.write(json.dumps(pred_dict,ensure_ascii=False) + '\n')
+        f.close()
         fw.close()
-    def _get_single(self,batch_sentences,tag_pred,all_predicate):
-        sentence = batch_sentences
-        result_list = []
-        for index, tag in zip(range(len(tag_pred)), tag_pred):
-            if tag[0] == 'B':
-                start = index
-                end = index
-                label_type = tag[2:]
-                if end != len(tag_pred) - 1:
-                    while tag_pred[end + 1][0] == 'I' and tag_pred[end + 1][2:] == label_type:
-                    # while tag_pred[end + 1][0] == 'M' or tag_pred[end + 1][0] == 'E' and tag_pred[end + 1][2:] == label_type:
-                        end += 1
-                result_list.append({'start': start,
-                                    'end': end,
-                                    'lable_type': label_type
-                                    })
-        predicate = []
-        subject_type = []
-        for i, item in enumerate(result_list):
-            if item['lable_type'] in all_predicate:
+def _get_single(sentence,tag_pred,all_predicate):
+    sentence = sentence
+    result_list = []
+    for index, tag in zip(range(len(tag_pred)), tag_pred):
+        if tag[0] == 'B':
+            start = index
+            end = index
+            label_type = tag[2:]
+            if end != len(tag_pred) - 1:
+                while tag_pred[end + 1][0] == 'I' and tag_pred[end + 1][2:] == label_type:
+                # while tag_pred[end + 1][0] == 'M' or tag_pred[end + 1][0] == 'E' and tag_pred[end + 1][2:] == label_type:
+                    end += 1
+            result_list.append({'start': start,
+                                'end': end,
+                                'lable_type': label_type
+                                })
+    predicate = []
+    subject_type = []
+    for i, item in enumerate(result_list):
+        if item['lable_type'] in all_predicate or item['lable_type'] == '手术治疗_p':
+            if item['lable_type'] == '手术治疗_p':
+                item['lable_type'] = item['lable_type'].replace('手术治疗_p','手术治疗')
                 predicate.append(item)
             else:
-                subject_type.append(item)
-        dict_list=[]
-        for i in subject_type:
-            for j in predicate:
-                dict_list.append({'subject_type': i['lable_type'],
-                                  'predicate': j['lable_type'],
-                                  'subject_type_start' : i['start'],
-                                  'subject_type_end': i['end'],
-                                  'object_type_start': j['start'],
-                                  'object_type_end': j['end']
-                                  })
-        return sentence, dict_list
+                predicate.append(item)
+        else:
+            subject_type.append(item)
+    dict_list=[]
+    for i in subject_type:
+        for j in predicate:
+            dict_list.append({'subject_type': i['lable_type'],
+                              'predicate': j['lable_type'],
+                              'subject_start' : i['start'],
+                              'subject_end': i['end'],
+                              'object_start': j['start'],
+                              'object_end': j['end']
+                              })
+    return sentence, dict_list
 
-        pass
 
 
 if __name__ == '__main__':

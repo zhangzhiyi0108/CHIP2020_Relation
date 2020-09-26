@@ -10,9 +10,10 @@ DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 default_config = {
     'experiment_name': 'test',
     'model_name': 'TransformerEncoderModel',
-    'train_path' : '../data/train_data.json',
-    'dev_path' : '../data/val_data.json',
+    'train_path' : '../data/sub_train_data.json',
+    'dev_path' : '../data/sub_val_data.json',
     'test_path': '../data/test1.json',
+    'shcemas_path': '../data/53_schemas.json',
     'vocab_path': '../data/vocab/entity_vocab.txt',  # ['vocab/task1_vocab.txt', 'vocab/task1_vocab.val.txt']
     'save_model_path': '../model/save_model/',
     'result_path': '../result/',
@@ -20,12 +21,12 @@ default_config = {
     # Baseline Config
     'tag_type': 'BME_SO',  # BIO or BME_SO
     'use_cuda': False,
-    'epoch': 100,
+    'epoch': 200,
     'batch_size': 32,
-    'learning_rate': 2e-4,
+    'learning_rate': 2e-5,
     'num_layers': 2,
     'pad_index': 1,
-    'dropout': 0.5,  # the dropout value
+    'dropout': 0.2,  # the dropout value
     'embedding_dim': 768,  # embedding dimension     词嵌入: BERT_768 Random_300
     'hidden_dim': 300,
     'use_vectors': True,
