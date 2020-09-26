@@ -468,13 +468,21 @@ class CHIP2020_RE():
                                         "object":{"@value":"".join(sentence[list['object_start']:list['object_end']+1])},
                                         'object_type':{"@value":shcemas['object_type']}
                                     }
-                                new.append(result_dict)
+                                if result_dict not in new:
+                                    new.append(result_dict)
                     if sum([item.count('。') for item in sentence]) >= 2:
                         for item in new:
                             item['Combined'] = True
                     else:
                         for item in new:
                             item['Combined'] = False
+
+                    # new_l = []
+                    # set1 = set()  # 定义一个新列表和集合
+                    # for d in new:
+                    #     if tuple(d.items()) not in set1:  # 将字典的items转成元组，判断是否在集合中
+                    #         set1.add(tuple(d.items()))
+                    #         new_l.append(d)
                     if len(new) == 0:
                         new =[{
                                     "Combined": '',
