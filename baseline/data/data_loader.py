@@ -30,7 +30,7 @@ class REDataset(Dataset):
         with open(path, 'r', encoding='utf-8') as f:
             for jsonstr in f.readlines():
                 jsonstr = json.loads(jsonstr)
-                text_list, tag_list = _get_list(jsonstr)
+                text_list, tag_list = _get_all_list(jsonstr)
                 examples.append(Example.fromlist((text_list, tag_list), fields))
         f.close()
         super(REDataset, self).__init__(examples, fields, **kwargs)
@@ -54,6 +54,44 @@ def _get_list(jsonstr):
         subject_end_poses = [start + len(subject) - 1 for start in subject_start_poses]
         for j in range(len(subject_start_poses)):
             x = subject_start_poses[j]
+            tag_list[x] = 'B_' + subject_type+'_'+predicate
+            x += 1
+            while x <= subject_end_poses[j]:
+                tag_list[x] = 'I_' + subject_type+'_'+predicate
+                x += 1
+        object_start_poses = _find_all_index(text, object)
+        object_end_poses = [start + len(object) - 1 for start in object_start_poses]
+        for j in range(len(object_start_poses)):
+            x = object_start_poses[j]
+            tag_list[x] = 'B_' + predicate+'_'+object_type
+            x += 1
+            while x <= object_end_poses[j]:
+                tag_list[x] = 'I_' + predicate+'_'+object_type
+                x += 1
+    text_list = list(text)
+    return text_list, tag_list
+def _get_all_list(jsonstr):
+    text = jsonstr['text']
+    tag_list = ['O' for i in range(len(text))]
+    spo_lists = jsonstr['spo_list']
+    predicates = []
+    subject = []
+    subject_type = []
+    object = []
+    object_type = []
+    in_subject = []
+    in_object = []
+    for index, spo_list in enumerate(spo_lists):
+        predicate=(spo_list['predicate'])
+        subject=(spo_list['subject'])
+        subject_type=(spo_list['subject_type'])
+        object=(spo_list['object']['@value'])
+        object_type=(spo_list['object_type']['@value'])
+
+        subject_start_poses = _find_all_index(text, subject)
+        subject_end_poses = [start + len(subject) - 1 for start in subject_start_poses]
+        for j in range(len(subject_start_poses)):
+            x = subject_start_poses[j]
             tag_list[x] = 'B_' + subject_type
             x += 1
             while x <= subject_end_poses[j]:
@@ -63,16 +101,10 @@ def _get_list(jsonstr):
         object_end_poses = [start + len(object) - 1 for start in object_start_poses]
         for j in range(len(object_start_poses)):
             x = object_start_poses[j]
-            if predicate == '手术治疗':
-                tag_list[x] = 'B_' + predicate+'_p'
-            else:
-                tag_list[x] = 'B_' + predicate
+            tag_list[x] = 'B_' + predicate + '_'+object_type
             x += 1
             while x <= object_end_poses[j]:
-                if predicate == '手术治疗':
-                    tag_list[x] = 'I_' + predicate+'_p'
-                else:
-                    tag_list[x] = 'I_' + predicate
+                tag_list[x] = 'I_' + predicate+ '_'+object_type
                 x += 1
     text_list = list(text)
     return text_list, tag_list
